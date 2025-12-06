@@ -1,28 +1,29 @@
 const express = require("express");
 const cors = require("cors");
 const { connectDB } = require("./config/db");
+const serviceRoutes = require("./routes/serviceRoutes");
 require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
 let db;
-let servicesCollection;
-let bookingsCollection;
 
+// Initialize DB connection
 connectDB()
   .then((database) => {
     db = database;
-    servicesCollection = db.collection("services");
-    bookingsCollection = db.collection("bookings");
 
+    // Test route
     app.get("/", (req, res) => {
       res.send("HomeHero Server is Running");
     });
 
+    // Health check
     app.get("/health", (req, res) => {
       res.json({
         status: "OK",
@@ -30,6 +31,9 @@ connectDB()
         timestamp: new Date().toISOString(),
       });
     });
+
+    // API Routes
+    app.use("/api/services", serviceRoutes(db));
 
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
