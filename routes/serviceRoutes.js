@@ -11,19 +11,16 @@ module.exports = (db) => {
       const { limit, category, minPrice, maxPrice, search } = req.query;
       let query = {};
 
-      // Category filter
       if (category) {
         query.category = category;
       }
 
-      // Price range filter
       if (minPrice || maxPrice) {
         query.price = {};
         if (minPrice) query.price.$gte = parseFloat(minPrice);
         if (maxPrice) query.price.$lte = parseFloat(maxPrice);
       }
 
-      // Search filter (case-insensitive)
       if (search) {
         query.$or = [
           { serviceName: { $regex: search, $options: "i" } },
@@ -34,7 +31,6 @@ module.exports = (db) => {
 
       let services = servicesCollection.find(query);
 
-      // Apply limit if provided
       if (limit) {
         services = services.limit(parseInt(limit));
       }
@@ -82,6 +78,55 @@ module.exports = (db) => {
     } catch (error) {
       console.error("Error fetching provider services:", error);
       res.status(500).json({ error: "Failed to fetch provider services" });
+    }
+  });
+
+  // POST - Create new service
+  router.post("/", async (req, res) => {
+    try {
+      const serviceData = req.body;
+
+      // Validate required fields
+      const requiredFields = [
+        "serviceName",
+        "category",
+        "price",
+        "description",
+        "imageURL",
+        "providerName",
+        "providerEmail",
+      ];
+      const missingFields = requiredFields.filter(
+        (field) => !serviceData[field]
+      );
+
+      if (missingFields.length > 0) {
+        return res.status(400).json({
+          error: "Missing required fields",
+          missingFields,
+        });
+      }
+
+      // Add metadata
+      const newService = {
+        ...serviceData,
+        price: parseFloat(serviceData.price),
+        reviews: [],
+        averageRating: 0,
+        totalReviews: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const result = await servicesCollection.insertOne(newService);
+
+      res.status(201).json({
+        message: "Service created successfully",
+        serviceId: result.insertedId,
+      });
+    } catch (error) {
+      console.error("Error creating service:", error);
+      res.status(500).json({ error: "Failed to create service" });
     }
   });
 
