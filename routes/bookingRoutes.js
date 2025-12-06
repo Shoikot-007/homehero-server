@@ -88,5 +88,29 @@ module.exports = (db) => {
     }
   });
 
+  // DELETE - Cancel booking
+  router.delete("/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid booking ID" });
+      }
+
+      const result = await bookingsCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      res.json({ message: "Booking cancelled successfully" });
+    } catch (error) {
+      console.error("Error cancelling booking:", error);
+      res.status(500).json({ error: "Failed to cancel booking" });
+    }
+  });
+
   return router;
 };
