@@ -86,7 +86,6 @@ module.exports = (db) => {
     try {
       const serviceData = req.body;
 
-      // Validate required fields
       const requiredFields = [
         "serviceName",
         "category",
@@ -107,7 +106,6 @@ module.exports = (db) => {
         });
       }
 
-      // Add metadata
       const newService = {
         ...serviceData,
         price: parseFloat(serviceData.price),
@@ -127,6 +125,69 @@ module.exports = (db) => {
     } catch (error) {
       console.error("Error creating service:", error);
       res.status(500).json({ error: "Failed to create service" });
+    }
+  });
+
+  // PUT - Update service
+  router.put("/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateData = req.body;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid service ID" });
+      }
+
+      // Remove fields that shouldn't be updated directly
+      delete updateData._id;
+      delete updateData.reviews;
+      delete updateData.createdAt;
+
+      // Convert price to number if present
+      if (updateData.price) {
+        updateData.price = parseFloat(updateData.price);
+      }
+
+      // Add updated timestamp
+      updateData.updatedAt = new Date();
+
+      const result = await servicesCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updateData }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: "Service not found" });
+      }
+
+      res.json({ message: "Service updated successfully" });
+    } catch (error) {
+      console.error("Error updating service:", error);
+      res.status(500).json({ error: "Failed to update service" });
+    }
+  });
+
+  // DELETE - Delete service
+  router.delete("/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid service ID" });
+      }
+
+      const result = await servicesCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+
+      if (result.deletedCount === 0) {
+        return res.status(404).json({ error: "Service not found" });
+      }
+
+      res.json({ message: "Service deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting service:", error);
+      res.status(500).json({ error: "Failed to delete service" });
     }
   });
 
