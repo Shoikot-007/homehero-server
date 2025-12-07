@@ -191,5 +191,88 @@ module.exports = (db) => {
     }
   });
 
+  // POST - Add review to service
+  router.post("/:id/review", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { rating, comment, userName, userEmail } = req.body;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid service ID" });
+      }
+
+      // Validate rating
+      if (!rating || rating < 1 || rating > 5) {
+        return res
+          .status(400)
+          .json({ error: "Rating must be between 1 and 5" });
+      }
+
+      const review = {
+        rating: parseInt(rating),
+        comment,
+        userName,
+        userEmail,
+        date: new Date(),
+      };
+
+      // Add review to service
+      const service = await servicesCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!service) {
+        return res.status(404).json({ error: "Service not found" });
+      }
+
+      const reviews = service.reviews || [];
+      reviews.push(review);
+
+      // Calculate new average rating
+      const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+      const averageRating = (totalRating / reviews.length).toFixed(1);
+
+      // Update service
+      await servicesCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            reviews: reviews,
+            averageRating: parseFloat(averageRating),
+            totalReviews: reviews.length,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      res.json({
+        message: "Review added successfully",
+        averageRating: parseFloat(averageRating),
+        totalReviews: reviews.length,
+      });
+    } catch (error) {
+      console.error("Error adding review:", error);
+      res.status(500).json({ error: "Failed to add review" });
+    }
+  });
+
+  // GET - Get top rated services
+  router.get("/top-rated/list", async (req, res) => {
+    try {
+      const { limit = 6 } = req.query;
+
+      const topServices = await servicesCollection
+        .find({ totalReviews: { $gt: 0 } })
+        .sort({ averageRating: -1, totalReviews: -1 })
+        .limit(parseInt(limit))
+        .toArray();
+
+      res.json(topServices);
+    } catch (error) {
+      console.error("Error fetching top rated services:", error);
+      res.status(500).json({ error: "Failed to fetch top rated services" });
+    }
+  });
+
   return router;
 };
