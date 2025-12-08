@@ -256,6 +256,60 @@ module.exports = (db) => {
     }
   });
 
+  // DELETE - Delete review from service
+  router.delete("/:id/review", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { userEmail } = req.body;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid service ID" });
+      }
+
+      const service = await servicesCollection.findOne({
+        _id: new ObjectId(id),
+      });
+
+      if (!service) {
+        return res.status(404).json({ error: "Service not found" });
+      }
+
+      // Filter out the review by userEmail
+      const reviews = (service.reviews || []).filter(
+        (r) => r.userEmail !== userEmail
+      );
+
+      // Recalculate average rating
+      let averageRating = 0;
+      if (reviews.length > 0) {
+        const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
+        averageRating = parseFloat((totalRating / reviews.length).toFixed(1));
+      }
+
+      // Update service
+      await servicesCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            reviews: reviews,
+            averageRating: averageRating,
+            totalReviews: reviews.length,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      res.json({
+        message: "Review deleted successfully",
+        averageRating: averageRating,
+        totalReviews: reviews.length,
+      });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ error: "Failed to delete review" });
+    }
+  });
+
   // GET - Get top rated services
   router.get("/top-rated/list", async (req, res) => {
     try {

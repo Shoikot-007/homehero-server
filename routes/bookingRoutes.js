@@ -88,6 +88,43 @@ module.exports = (db) => {
     }
   });
 
+  // PATCH - Update booking status
+  router.patch("/:id/status", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: "Invalid booking ID" });
+      }
+
+      // Validate status
+      const validStatuses = ["pending", "confirmed", "completed", "cancelled"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      const result = await bookingsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            status: status,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({ error: "Booking not found" });
+      }
+
+      res.json({ message: "Booking status updated successfully", status });
+    } catch (error) {
+      console.error("Error updating booking status:", error);
+      res.status(500).json({ error: "Failed to update booking status" });
+    }
+  });
+
   // DELETE - Cancel booking
   router.delete("/:id", async (req, res) => {
     try {
